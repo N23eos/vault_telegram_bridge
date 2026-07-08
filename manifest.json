@@ -1,7 +1,7 @@
 {
   "id": "vault-telegram-bridge",
   "name": "Vault Telegram Bridge",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "minAppVersion": "1.7.2",
   "description": "Capture messages from a Telegram bot into a daily note in your vault. No server required.",
   "author": "N23eos",
