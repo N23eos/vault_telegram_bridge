@@ -87,7 +87,7 @@ describe('VaultAttachmentStore — success', () => {
     const { store, created } = build({});
     const line = await store.save(photo(), '2026-07-08.md');
     expect(created).toEqual(['Files/TG-2026-07-08-42.jpg']);
-    expect(line).toBe('![[Files/TG-2026-07-08-42.jpg]]');
+    expect(line).toMatchObject({ line: '![[Files/TG-2026-07-08-42.jpg]]' });
   });
 });
 
@@ -95,7 +95,7 @@ describe('VaultAttachmentStore — error policy (review fix: no sync wedge)', ()
   it('turns a known-oversize attachment into a placeholder without any network call', async () => {
     const { store, calls } = build({});
     const line = await store.save(photo({ fileSize: 21 * 1024 * 1024 }), 'n.md');
-    expect(line).toContain('20 MB');
+    expect(line.line).toContain('20 MB');
     expect(calls.resolve + calls.fetch).toBe(0);
   });
 
@@ -105,7 +105,7 @@ describe('VaultAttachmentStore — error policy (review fix: no sync wedge)', ()
         throw errFileTooBig();
       },
     });
-    expect(await store.save(photo(), 'n.md')).toContain('20 MB');
+    expect((await store.save(photo(), 'n.md')).line).toContain('20 MB');
   });
 
   it('turns a permanent failure into a placeholder instead of wedging sync', async () => {
@@ -115,7 +115,7 @@ describe('VaultAttachmentStore — error policy (review fix: no sync wedge)', ()
       },
     });
     const line = await store.save(photo(), 'n.md');
-    expect(line).toContain('could not be downloaded');
+    expect(line.line).toContain('could not be downloaded');
   });
 
   it('rethrows a retryable failure so the pass retries', async () => {
@@ -141,7 +141,7 @@ describe('VaultAttachmentStore — download avoidance (review fix)', () => {
     const line = await store.save(photo(), 'n.md');
     expect(calls.fetch).toBe(0);
     expect(created).toEqual([]);
-    expect(line).toBe('![[Old/TG-2026-07-08-42.jpg]]');
+    expect(line.line).toBe('![[Old/TG-2026-07-08-42.jpg]]');
   });
 
   it('needs no resolve call at all when the original name carries the extension', async () => {
@@ -152,6 +152,14 @@ describe('VaultAttachmentStore — download avoidance (review fix)', () => {
     const line = await store.save(m, 'n.md');
     expect(calls.resolve).toBe(0);
     expect(calls.fetch).toBe(0);
-    expect(line).toBe('![[Files/report TG-42.pdf]]');
+    expect(line.line).toBe('![[Files/report TG-42.pdf]]');
+  });
+
+  it('returns downloaded bytes and file name when requested for transcription', async () => {
+    const bytes = new Uint8Array([1, 2, 3]).buffer;
+    const { store } = build({ fetch: async () => bytes });
+    const saved = await store.save(photo({ kind: 'voice' }), 'n.md', true);
+    expect(saved.data).toBe(bytes);
+    expect(saved.fileName).toBe('TG-2026-07-08-42.jpg');
   });
 });

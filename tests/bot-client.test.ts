@@ -151,7 +151,7 @@ describe('parseUpdates — attachments', () => {
       { fields: { voice: { file_id: 'v' } }, kind: 'voice' },
       { fields: { audio: { file_id: 'a' } }, kind: 'audio' },
       { fields: { video: { file_id: 'vd' } }, kind: 'video' },
-      { fields: { video_note: { file_id: 'vn' } }, kind: 'video' },
+      { fields: { video_note: { file_id: 'vn' } }, kind: 'video_note' },
     ];
     for (const k of kinds) {
       const r = parseUpdates([media(1, 10, k.fields)], '555');
