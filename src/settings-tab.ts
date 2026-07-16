@@ -42,7 +42,7 @@ export class SettingsTab extends PluginSettingTab {
   private renderRoutes(root: HTMLElement): void {
     const s = this.plugin.settings;
     new Setting(root).setName(t('settings.section.routes')).setHeading();
-    root.createEl('div', { text: t('settings.routes.desc'), cls: 'setting-item-description' });
+    root.createDiv({ text: t('settings.routes.desc'), cls: 'setting-item-description' });
 
     s.routes.forEach((route, index) => {
       new Setting(root)
@@ -182,12 +182,12 @@ export class SettingsTab extends PluginSettingTab {
             this.display();
           }),
       );
-      bound.descEl.createEl('div', {
+      bound.descEl.createDiv({
         text: t('settings.boundChat.bound', { chatId: s.boundChatId }),
         cls: 'mod-success',
       });
     } else {
-      bound.descEl.createEl('div', { text: t('settings.boundChat.none') });
+      bound.descEl.createDiv({ text: t('settings.boundChat.none') });
     }
   }
 
@@ -210,7 +210,7 @@ export class SettingsTab extends PluginSettingTab {
       );
 
     if (s.useCoreDailyNote && readCoreDailyNoteOptions(this.app) === null) {
-      coreToggle.descEl.createEl('div', { text: t('settings.coreDaily.unavailable'), cls: 'mod-warning' });
+      coreToggle.descEl.createDiv({ text: t('settings.coreDaily.unavailable'), cls: 'mod-warning' });
     }
 
     // Folder and note name are the two fields core mode replaces. The heading
@@ -298,7 +298,7 @@ export class SettingsTab extends PluginSettingTab {
       });
 
     if (s.blockStyle === 'code') {
-      root.createEl('div', { text: t('settings.blockStyle.codeWarning'), cls: 'setting-item-description' });
+      root.createDiv({ text: t('settings.blockStyle.codeWarning'), cls: 'setting-item-description' });
     }
 
     if (s.blockStyle === 'callout') {
@@ -320,7 +320,7 @@ export class SettingsTab extends PluginSettingTab {
     this.refreshPreview();
 
     if (!s.lineTemplate.includes('{text}')) {
-      root.createEl('div', { text: t('error.noTextPlaceholder'), cls: 'mod-warning' });
+      root.createDiv({ text: t('error.noTextPlaceholder'), cls: 'mod-warning' });
     }
   }
 
@@ -366,9 +366,9 @@ export class SettingsTab extends PluginSettingTab {
 
     if (!s.transcriptionEnabled) return;
 
-    const hint = root.createEl('div', { cls: 'setting-item-description' });
-    hint.createEl('div', { text: t('settings.transcription.hint.groq') });
-    hint.createEl('div', { text: t('settings.transcription.hint.openai') });
+    const hint = root.createDiv({ cls: 'setting-item-description' });
+    hint.createDiv({ text: t('settings.transcription.hint.groq') });
+    hint.createDiv({ text: t('settings.transcription.hint.openai') });
 
     new Setting(root)
       .setName(t('settings.transcription.baseUrl.name'))

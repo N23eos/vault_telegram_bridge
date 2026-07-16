@@ -49,7 +49,6 @@ export default class SpikePlugin extends Plugin {
 
   log(line: string) {
     const stamped = `[${new Date().toISOString()}] ${line}`;
-    console.log('[tg-spike]', stamped);
     this.data.log.push(stamped);
     void this.saveData(this.data);
   }

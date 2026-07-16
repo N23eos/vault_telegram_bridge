@@ -13,6 +13,7 @@ export function normalizePath(path: string): string {
     .normalize('NFC');
 }
 
+export const getLanguage = (): string => 'en';
 export class TFile {}
 export class Notice {}
 export class Plugin {}

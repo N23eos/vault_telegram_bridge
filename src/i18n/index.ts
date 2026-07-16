@@ -1,3 +1,4 @@
+import { getLanguage } from 'obsidian';
 import { en, type Dictionary, type I18nKey } from './en';
 import { ru } from './ru';
 
@@ -15,9 +16,15 @@ export function setLocale(locale: string): void {
 }
 
 export function detectLocale(): string {
-  // Obsidian writes its UI language here; window.navigator.language is the fallback.
-  const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('language') : null;
-  return stored || (typeof navigator !== 'undefined' ? navigator.language : 'en');
+  // Official API since Obsidian 1.8; older builds fall back to the system language.
+  if (typeof getLanguage === 'function') {
+    try {
+      return getLanguage();
+    } catch {
+      // pre-1.8 runtime without the export
+    }
+  }
+  return typeof navigator !== 'undefined' ? navigator.language : 'en';
 }
 
 /**

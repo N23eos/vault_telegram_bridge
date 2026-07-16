@@ -5,7 +5,10 @@
   white-space: pre-wrap;
 }
 
-/* Settings tab: a field whose current value cannot be used as-is. */
+/* Settings tab: a field whose current value cannot be used as-is.
+   Outline instead of border-color: themes style input borders, an outline
+   needs no specificity fight. */
 input.vtb-invalid {
-  border-color: var(--text-error) !important;
+  outline: 1px solid var(--text-error);
+  outline-offset: -1px;
 }
