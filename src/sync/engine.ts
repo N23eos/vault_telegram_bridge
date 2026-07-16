@@ -1,10 +1,12 @@
 import { HumanError, isRetryable, toHumanError } from '../errors';
+import { t } from '../i18n';
 import { entitiesToMarkdown } from '../telegram/entities';
 import type { InboundMessage, MessageSource } from '../telegram/types';
 import type { Settings } from '../settings';
 import type { AttachmentSink } from '../vault/attachments';
 import { resolveDailyNotePath, type DateFormatter } from '../vault/daily-note';
 import type { NoteEntry, NoteWriter } from '../vault/writer';
+import type { Transcriber } from '../transcription';
 import { markerKey } from './dedupe';
 import { renderEntry } from './render';
 import { routeMessage } from './routing';
@@ -29,6 +31,8 @@ export interface EngineDeps {
   onNotice: (e: HumanError) => void;
   /** Download-and-store for media messages. Returns the entry's attachment line. */
   attachments: AttachmentSink;
+  /** Optional STT transport; settings still decide whether it is called. */
+  transcriber: Transcriber;
   /**
    * Initial content for a note that does not exist yet — the daily-note
    * template, rendered for the given day. `''` means create empty, as before.
@@ -158,16 +162,48 @@ export class SyncEngine {
     // Inside a code fence Markdown is inert, so converted `**bold**` would show
     // its asterisks — the raw text reads better there.
     const text = s.blockStyle === 'code' ? m.text : entitiesToMarkdown(m.text, m.entities);
-    const attachmentLine = m.attachment ? await this.deps.attachments.save(m, notePath) : undefined;
+    const wantsTranscription =
+      s.transcriptionEnabled &&
+      s.transcriptionApiKey !== '' &&
+      m.attachment !== undefined &&
+      isTranscribable(m.attachment.kind);
+    const saved = m.attachment
+      ? await this.deps.attachments.save(m, notePath, wantsTranscription)
+      : undefined;
+    const attachmentLines = saved ? [saved.line] : [];
+
+    if (wantsTranscription && saved?.data && saved.fileName) {
+      try {
+        const transcript = await this.deps.transcriber.transcribe(
+          { data: saved.data, fileName: saved.fileName },
+          {
+            baseUrl: s.transcriptionBaseUrl,
+            apiKey: s.transcriptionApiKey,
+            model: s.transcriptionModel,
+          },
+        );
+        attachmentLines.push(t('entry.transcription', { text: transcript }));
+      } catch (error) {
+        this.deps.onNotice(
+          error instanceof HumanError
+            ? error
+            : new HumanError('error.transcriptionFailed', { reason: 'unexpected error' }, error),
+        );
+      }
+    }
 
     const lines = renderEntry(
       text,
       { template: s.lineTemplate, blockStyle: s.blockStyle, calloutType: s.calloutType },
       { time: this.deps.format('HH:mm', when), date: this.deps.format('YYYY-MM-DD', when) },
-      attachmentLine,
+      attachmentLines,
     );
     return { key: markerKey(m), lines };
   }
+}
+
+function isTranscribable(kind: NonNullable<InboundMessage['attachment']>['kind']): boolean {
+  return kind === 'voice' || kind === 'audio' || kind === 'video_note';
 }
 
 interface DestinationGroup {

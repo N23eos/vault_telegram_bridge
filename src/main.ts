@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, migrate, type Settings } from './settings';
 import { SettingsTab } from './settings-tab';
 import { SyncEngine } from './sync/engine';
 import { BotClient } from './telegram/bot-client';
+import { OpenAITranscriber } from './transcription';
 import { VaultAttachmentStore } from './vault/attachments';
 import { readCoreDailyNoteOptions, renderDailyTemplate } from './vault/core-daily-notes';
 import { VaultNoteWriter } from './vault/writer';
@@ -59,6 +60,7 @@ export default class TelegramInboxPlugin extends Plugin {
         fetch: (filePath) => this.client.fetchFile(filePath),
         format: formatDate,
       }),
+      transcriber: new OpenAITranscriber(),
       seed: (date) => this.dailyNoteSeed(date),
     });
 

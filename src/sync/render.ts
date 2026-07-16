@@ -140,17 +140,22 @@ export function renderEntry(
   text: string,
   opts: RenderOptions,
   ctx: RenderContext,
-  attachmentLine?: string,
+  attachmentLine?: string | readonly string[],
 ): string[] {
+  const attachmentLines = attachmentLine
+    ? typeof attachmentLine === 'string'
+      ? [attachmentLine]
+      : [...attachmentLine]
+    : [];
   if (opts.blockStyle === 'code') {
     // Inside a fence nothing is interpreted, so the text is written untouched.
     // The only hazard is the fence itself, and `fenceFor` handles it.
     const fenced = wrapCode(templated(text, opts, ctx), text + opts.template);
-    return attachmentLine ? [...fenced, attachmentLine] : fenced;
+    return [...fenced, ...attachmentLines];
   }
 
   const lines = templated(sanitizeInline(text), opts, ctx);
-  if (attachmentLine) lines.push(attachmentLine);
+  lines.push(...attachmentLines);
   return opts.blockStyle === 'callout' ? wrapCallout(lines, opts.calloutType) : lines;
 }
 

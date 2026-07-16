@@ -480,7 +480,7 @@ describe('SyncEngine — attachments', () => {
     expect(includeData).toEqual([true]);
     expect(transcribe).toHaveBeenCalledOnce();
     expect(writer.body('2026-07-08.md')).toBe(
-      '## Telegram\n\n**09:12** \n![[voice.oga]]\n🎙️ remember the milk\n',
+      '## Telegram\n\n**09:12**\n![[voice.oga]]\n🎙️ remember the milk\n',
     );
   });
 
