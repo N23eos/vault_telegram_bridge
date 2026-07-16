@@ -131,12 +131,12 @@ export class VaultAttachmentStore implements AttachmentSink {
     }
   }
 
-  /** The exact target first, then the whole vault — the deterministic name is unique per message. */
+  /** The exact target first, then anywhere — the deterministic name is unique per message. */
   private findByName(name: string, target: string): TFile | null {
     const atTarget = this.deps.app.vault.getAbstractFileByPath(target);
     if (atTarget instanceof TFile) return atTarget;
-    const elsewhere = this.deps.app.vault.getFiles().find((f) => f.name === name);
-    return elsewhere ?? null;
+    // metadataCache resolves a bare name without enumerating the vault.
+    return this.deps.app.metadataCache.getFirstLinkpathDest(name, '');
   }
 
   /**

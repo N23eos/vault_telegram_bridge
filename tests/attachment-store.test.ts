@@ -50,7 +50,6 @@ function build(opts: {
   const app = {
     vault: {
       getAbstractFileByPath: (p: string) => files.get(p) ?? null,
-      getFiles: () => [...files.values()],
       createBinary: async (p: string, _data: ArrayBuffer) => {
         created.push(p);
         const f = new FakeFile(p, p.split('/').pop() ?? p);
@@ -63,6 +62,10 @@ function build(opts: {
     },
     fileManager: {
       getAvailablePathForAttachment: async (name: string) => `${folder}/${name}`,
+    },
+    metadataCache: {
+      getFirstLinkpathDest: (linkpath: string, _sourcePath: string) =>
+        [...files.values()].find((f) => f.name === linkpath) ?? null,
     },
   } as unknown as App;
 
