@@ -58,7 +58,7 @@ export function routeMessage(
 }
 
 export function resolveRoutePath(template: string, date: Date, format: DateFormatter): string {
-  const rendered = format(template, date).trim();
+  const rendered = formatRoutePath(template, date, format).trim();
   if (rendered === '' || ILLEGAL_IN_PATH.test(rendered)) throw errBadTemplate(template);
 
   const segments = rendered.split('/');
@@ -68,6 +68,49 @@ export function resolveRoutePath(template: string, date: Date, format: DateForma
 
   const withExtension = rendered.toLocaleLowerCase().endsWith('.md') ? rendered : `${rendered}.md`;
   return normalizePath(withExtension);
+}
+
+/**
+ * Moment treats ordinary letters as tokens (`d`, `m`, `a`, …). Passing a path
+ * like `Inbox/Ideas.md` to `moment().format()` would therefore mangle the note
+ * name. Only complete chunks made solely of common multi-character tokens are
+ * formatted; literal path words never enter Moment.
+ */
+function formatRoutePath(template: string, date: Date, format: DateFormatter): string {
+  return template.replace(/[A-Za-z]+/g, (chunk) => (isDateTokenChunk(chunk) ? format(chunk, date) : chunk));
+}
+
+const DATE_TOKENS = [
+  'YYYY',
+  'MMMM',
+  'DDDD',
+  'SSS',
+  'MMM',
+  'DDD',
+  'YY',
+  'MM',
+  'DD',
+  'HH',
+  'hh',
+  'mm',
+  'ss',
+  'WW',
+  'ww',
+  'ZZ',
+  'Q',
+  'Z',
+  'X',
+  'x',
+] as const;
+
+function isDateTokenChunk(chunk: string): boolean {
+  let offset = 0;
+  while (offset < chunk.length) {
+    const token = DATE_TOKENS.find((candidate) => chunk.startsWith(candidate, offset));
+    if (!token) return false;
+    offset += token.length;
+  }
+  return true;
 }
 
 function removeEntity(

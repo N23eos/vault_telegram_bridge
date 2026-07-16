@@ -158,7 +158,7 @@ const MIGRATIONS: Record<number, Migration> = {
  * alternative is a user who cannot reach the settings tab to fix it.
  */
 export function migrate(raw: unknown): Settings {
-  if (typeof raw !== 'object' || raw === null) return { ...DEFAULT_SETTINGS };
+  if (typeof raw !== 'object' || raw === null) return freshDefaults();
 
   let data = { ...(raw as Record<string, unknown>) };
   let version = typeof data.version === 'number' ? data.version : 0;
@@ -179,7 +179,7 @@ export function migrate(raw: unknown): Settings {
 
 /** Coerces one loaded object into a valid `Settings`, field by field. */
 function sanitize(data: Record<string, unknown>): Settings {
-  const s = { ...DEFAULT_SETTINGS };
+  const s = freshDefaults();
 
   if (typeof data.botToken === 'string') s.botToken = data.botToken.trim();
   if (typeof data.boundChatId === 'string' && /^-?\d+$/.test(data.boundChatId)) {
@@ -231,6 +231,10 @@ function sanitize(data: Record<string, unknown>): Settings {
 
   s.version = CURRENT_SCHEMA_VERSION;
   return s;
+}
+
+function freshDefaults(): Settings {
+  return { ...DEFAULT_SETTINGS, routes: [] };
 }
 
 const HASHTAG = /^[\p{L}\p{N}_]+$/u;
