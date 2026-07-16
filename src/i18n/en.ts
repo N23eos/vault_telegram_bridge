@@ -98,6 +98,7 @@ export const en = {
   // --- entry fragments written into notes ---
   'entry.attachmentTooBig': '*Attachment over 20 MB — the bot API refuses it; it stays in your Telegram chat.*',
   'entry.attachmentFailed': '*Attachment could not be downloaded — it stays in your Telegram chat.*',
+  'entry.transcription': '🎙️ {text}',
 
   // --- notices ---
   'notice.synced': 'Telegram: {n} new',
@@ -121,6 +122,7 @@ export const en = {
   'error.badTemplate': 'The note-name format “{template}” produces an empty or invalid file name.',
   'error.noTextPlaceholder': 'The line format has no {text}, so message bodies would be dropped.',
   'error.writeFailed': 'Could not write to “{path}”: {reason}',
+  'error.transcriptionFailed': 'Voice transcription failed ({reason}). The attachment was still saved.',
   'error.unknown': 'Something went wrong: {message}',
 } as const;
 

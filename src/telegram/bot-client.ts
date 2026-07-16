@@ -184,7 +184,7 @@ function pickAttachment(m: TgMessage): TgAttachment | undefined {
     [m.voice, 'voice'],
     [m.audio, 'audio'],
     [m.video, 'video'],
-    [m.video_note, 'video'],
+    [m.video_note, 'video_note'],
     [m.animation, 'video'],
     [m.document, 'document'],
   ];

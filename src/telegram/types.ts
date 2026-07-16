@@ -29,7 +29,7 @@ export interface TgEntity {
 }
 
 /** What kind of file rode along with the message. */
-export type AttachmentKind = 'photo' | 'voice' | 'audio' | 'video' | 'document';
+export type AttachmentKind = 'photo' | 'voice' | 'audio' | 'video' | 'video_note' | 'document';
 
 export interface TgAttachment {
   kind: AttachmentKind;

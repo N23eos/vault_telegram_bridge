@@ -58,3 +58,5 @@ export const errFileTooBig = () => new HumanError('error.fileTooBig');
 export const errBadTemplate = (template: string) => new HumanError('error.badTemplate', { template });
 export const errWriteFailed = (path: string, reason: string) =>
   new HumanError('error.writeFailed', { path, reason });
+export const errTranscriptionFailed = (reason: string, cause?: unknown) =>
+  new HumanError('error.transcriptionFailed', { reason }, cause);

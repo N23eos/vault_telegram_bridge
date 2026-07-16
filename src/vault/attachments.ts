@@ -26,8 +26,15 @@ import { parentFolderOf } from './daily-note';
  */
 
 export interface AttachmentSink {
-  /** The Markdown line for this message's attachment. Throws only what is worth retrying. */
-  save(m: InboundMessage, notePath: string): Promise<string>;
+  /** The Markdown line and, on request, bytes for STT. Throws only what is worth retrying. */
+  save(m: InboundMessage, notePath: string, includeData?: boolean): Promise<SavedAttachment>;
+}
+
+export interface SavedAttachment {
+  line: string;
+  /** Present only when requested and a real file was available. */
+  data?: ArrayBuffer;
+  fileName?: string;
 }
 
 /** The Bot API's documented ceiling for `getFile`. */
@@ -80,13 +87,13 @@ export interface VaultAttachmentDeps {
 export class VaultAttachmentStore implements AttachmentSink {
   constructor(private readonly deps: VaultAttachmentDeps) {}
 
-  async save(m: InboundMessage, notePath: string): Promise<string> {
+  async save(m: InboundMessage, notePath: string, includeData = false): Promise<SavedAttachment> {
     const a = m.attachment;
-    if (!a) return '';
+    if (!a) return { line: '' };
 
     // Known-oversize: skip the doomed round-trip entirely.
     if (a.fileSize !== undefined && a.fileSize > MAX_BOT_FILE_BYTES) {
-      return t('entry.attachmentTooBig');
+      return { line: t('entry.attachmentTooBig') };
     }
 
     try {
@@ -105,27 +112,31 @@ export class VaultAttachmentStore implements AttachmentSink {
       // attachment-folder setting resolved differently last pass.
       const target = await this.targetPath(name, notePath);
       const existing = this.findByName(name, target);
-      if (existing !== null) return embedLine(existing);
+      if (existing !== null) {
+        const data = includeData ? await this.deps.app.vault.readBinary(existing) : undefined;
+        return { line: embedLine(existing.path), fileName: name, ...(data ? { data } : {}) };
+      }
 
       if (!resolved) resolved = await this.deps.resolve(a.fileId);
       const data = await this.deps.fetch(resolved.filePath);
 
       await this.ensureFolder(parentFolderOf(target));
       await this.deps.app.vault.createBinary(target, data);
-      return embedLine(target);
+      return { line: embedLine(target), fileName: name, ...(includeData ? { data } : {}) };
     } catch (e) {
       const err = toHumanError(e);
-      if (err.key === 'error.fileTooBig') return t('entry.attachmentTooBig');
+      if (err.key === 'error.fileTooBig') return { line: t('entry.attachmentTooBig') };
       if (isRetryable(err)) throw err;
-      return t('entry.attachmentFailed');
+      return { line: t('entry.attachmentFailed') };
     }
   }
 
   /** The exact target first, then the whole vault — the deterministic name is unique per message. */
-  private findByName(name: string, target: string): string | null {
-    if (this.deps.app.vault.getAbstractFileByPath(target) instanceof TFile) return target;
+  private findByName(name: string, target: string): TFile | null {
+    const atTarget = this.deps.app.vault.getAbstractFileByPath(target);
+    if (atTarget instanceof TFile) return atTarget;
     const elsewhere = this.deps.app.vault.getFiles().find((f) => f.name === name);
-    return elsewhere ? elsewhere.path : null;
+    return elsewhere ?? null;
   }
 
   /**
