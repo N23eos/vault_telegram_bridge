@@ -7,6 +7,7 @@ import { resolveDailyNotePath, type DateFormatter } from '../vault/daily-note';
 import type { NoteEntry, NoteWriter } from '../vault/writer';
 import { markerKey } from './dedupe';
 import { renderEntry } from './render';
+import { routeMessage } from './routing';
 
 /**
  * Orchestration. TZ §5.4. The only module that knows about both a `MessageSource`
@@ -107,7 +108,7 @@ export class SyncEngine {
 
     // Messages sent either side of midnight belong to different notes. Group by
     // destination so each note is opened and written exactly once.
-    for (const [path, batch] of this.groupByNote(messages)) {
+    for (const group of this.groupByNote(messages)) {
       // Deduplication happens inside the writer, against the note as it exists at
       // the instant of the write. Doing it here, against content read a moment
       // earlier, is how a note that arrived over vault sync in between produces
@@ -117,10 +118,10 @@ export class SyncEngine {
       // re-read re-downloads the bytes once. The deterministic file name makes
       // that harmless — same path, already on disk, no second copy.
       const entries: NoteEntry[] = [];
-      for (const m of batch) entries.push(await this.toEntry(m, path));
+      for (const m of group.messages) entries.push(await this.toEntry(m, group.path));
 
-      const seed = await this.deps.seed(new Date(batch[0].date * 1000));
-      const count = await this.deps.writer.appendEntries(path, settings.heading, entries, seed);
+      const seed = group.routed ? '' : await this.deps.seed(new Date(group.messages[0].date * 1000));
+      const count = await this.deps.writer.appendEntries(group.path, group.heading, entries, seed);
       written += count;
       duplicate += entries.length - count;
     }
@@ -132,17 +133,22 @@ export class SyncEngine {
     return { written, skipped: { ...skipped, duplicate } };
   }
 
-  private groupByNote(messages: InboundMessage[]): Map<string, InboundMessage[]> {
+  private groupByNote(messages: InboundMessage[]): DestinationGroup[] {
     const settings = this.deps.settings();
-    const groups = new Map<string, InboundMessage[]>();
+    const groups = new Map<string, DestinationGroup>();
 
     for (const m of messages) {
-      const path = resolveDailyNotePath(settings, new Date(m.date * 1000), this.deps.format);
-      const bucket = groups.get(path);
-      if (bucket) bucket.push(m);
-      else groups.set(path, [m]);
+      const when = new Date(m.date * 1000);
+      const routed = routeMessage(m.text, m.entities, settings.routes, when, this.deps.format);
+      const path = routed?.path ?? resolveDailyNotePath(settings, when, this.deps.format);
+      const heading = routed?.heading ?? settings.heading;
+      const message = routed ? { ...m, text: routed.text, entities: routed.entities } : m;
+      const key = JSON.stringify([path, heading]);
+      const bucket = groups.get(key);
+      if (bucket) bucket.messages.push(message);
+      else groups.set(key, { path, heading, messages: [message], routed: routed !== undefined });
     }
-    return groups;
+    return [...groups.values()];
   }
 
   private async toEntry(m: InboundMessage, notePath: string): Promise<NoteEntry> {
@@ -162,4 +168,11 @@ export class SyncEngine {
     );
     return { key: markerKey(m), lines };
   }
+}
+
+interface DestinationGroup {
+  path: string;
+  heading: string;
+  messages: InboundMessage[];
+  routed: boolean;
 }
