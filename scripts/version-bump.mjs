@@ -20,3 +20,12 @@ writeFileSync("manifest.json", JSON.stringify(manifest, null, 2) + "\n");
 const versions = JSON.parse(readFileSync("versions.json", "utf8"));
 versions[targetVersion] = minAppVersion;
 writeFileSync("versions.json", JSON.stringify(versions, null, 2) + "\n");
+
+// Stamp the version into styles.css so every release ships unique bytes.
+// Identical bytes across releases collect multiple provenance attestations
+// on one digest, which the plugin directory verifier rejects.
+const styles = readFileSync("styles.css", "utf8");
+writeFileSync(
+  "styles.css",
+  styles.replace(/^\/\* Vault Telegram Bridge .* \*\//, `/* Vault Telegram Bridge ${targetVersion} */`),
+);
