@@ -219,6 +219,13 @@ describe('migrate', () => {
     migrate({ folder: 'mutated' });
     expect(DEFAULT_SETTINGS.folder).toBe('');
   });
+
+  it('does not share the mutable routes array with defaults or another settings instance', () => {
+    const first = migrate(null);
+    first.routes.push({ tag: 'idea', notePath: 'Ideas.md' });
+    expect(DEFAULT_SETTINGS.routes).toEqual([]);
+    expect(migrate(null).routes).toEqual([]);
+  });
 });
 
 describe('stripSlashes', () => {

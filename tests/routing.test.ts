@@ -27,6 +27,35 @@ describe('resolveRoute', () => {
   });
 });
 
+describe('route path formatting', () => {
+  it('does not pass ordinary path words through Moment token formatting', () => {
+    const seen: string[] = [];
+    const result = routeMessage(
+      '#idea x',
+      [{ type: 'hashtag', offset: 0, length: 5 }],
+      [{ tag: 'idea', notePath: 'Inbox/Ideas.md' }],
+      new Date(),
+      (template) => {
+        seen.push(template);
+        return 'mangled';
+      },
+    );
+    expect(result?.path).toBe('Inbox/Ideas.md');
+    expect(seen).toEqual([]);
+  });
+
+  it('formats complete date-token chunks while preserving literal path chunks', () => {
+    const result = routeMessage(
+      '#idea x',
+      [{ type: 'hashtag', offset: 0, length: 5 }],
+      [{ tag: 'idea', notePath: 'Topics/YYYY-MM/YYYYMMDD.md' }],
+      new Date(),
+      fmt,
+    );
+    expect(result?.path).toBe('Topics/2026-07/20260716.md');
+  });
+});
+
 describe('routeMessage', () => {
   it('removes the routing hashtag and surrounding extra space', () => {
     const result = routeMessage(
