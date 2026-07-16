@@ -4,6 +4,8 @@ import { DEFAULT_SETTINGS, type Settings } from '../src/settings';
 import { SyncEngine } from '../src/sync/engine';
 import { applyEntries, type NoteEntry } from '../src/vault/writer';
 import type { MessageSource, PollResult } from '../src/telegram/types';
+import type { SavedAttachment } from '../src/vault/attachments';
+import type { Transcriber } from '../src/transcription';
 
 /* ---------------- fakes ---------------- */
 
@@ -69,7 +71,11 @@ const message = (messageId: number, text: string, date = T) => ({ chatId: '555',
 function build(
   results: Array<PollResult | Error>,
   overrides: Partial<Settings> = {},
-  hooks: { save?: (m: unknown, notePath: string) => Promise<string>; seed?: (date: Date) => Promise<string> } = {},
+  hooks: {
+    save?: (m: unknown, notePath: string, includeData?: boolean) => Promise<SavedAttachment>;
+    seed?: (date: Date) => Promise<string>;
+    transcribe?: Transcriber['transcribe'];
+  } = {},
 ) {
   const settings: Settings = { ...DEFAULT_SETTINGS, botToken: '123456:x', ...overrides };
   const writer = new FakeWriter();
@@ -84,7 +90,8 @@ function build(
     },
     format: fmt,
     onNotice,
-    attachments: { save: hooks.save ?? (async () => '![[unexpected-attachment]]') },
+    attachments: { save: hooks.save ?? (async () => ({ line: '![[unexpected-attachment]]' })) },
+    transcriber: { transcribe: hooks.transcribe ?? (async () => 'unexpected transcription') },
     seed: hooks.seed ?? (async () => ''),
   });
   return { engine, writer, source, settings, onNotice };
@@ -420,7 +427,7 @@ describe('SyncEngine — attachments', () => {
 
   it('appends the line the attachment sink returns', async () => {
     const { engine, writer } = build([result([withPhoto(1, 'sunset')], 2)], {}, {
-      save: async () => '![[Files/TG-42.jpg]]',
+      save: async () => ({ line: '![[Files/TG-42.jpg]]' }),
     });
     await engine.run('manual');
     expect(writer.body('2026-07-08.md')).toBe('## Telegram\n\n**09:12** sunset\n![[Files/TG-42.jpg]]\n');
@@ -431,7 +438,7 @@ describe('SyncEngine — attachments', () => {
     const { engine } = build([result([withPhoto(1, '')], 2)], { folder: 'Inbox' }, {
       save: async (_m, notePath) => {
         seen.push(notePath);
-        return '![[x.jpg]]';
+        return { line: '![[x.jpg]]' };
       },
     });
     await engine.run('manual');
@@ -446,6 +453,81 @@ describe('SyncEngine — attachments', () => {
     });
     await engine.run('manual');
     expect(settings.cursor).toBe(7);
+  });
+
+  it('transcribes voice bytes once and writes the transcript below the embed', async () => {
+    const voice = {
+      chatId: '555',
+      messageId: 1,
+      date: T,
+      text: '',
+      attachment: { kind: 'voice' as const, fileId: 'v1' },
+    };
+    const includeData: boolean[] = [];
+    const transcribe = vi.fn(async () => 'remember the milk');
+    const { engine, writer } = build(
+      [result([voice], 2)],
+      { transcriptionEnabled: true, transcriptionApiKey: 'key' },
+      {
+        save: async (_m, _path, include) => {
+          includeData.push(include ?? false);
+          return { line: '![[voice.oga]]', fileName: 'voice.oga', data: new ArrayBuffer(3) };
+        },
+        transcribe,
+      },
+    );
+    await engine.run('manual');
+    expect(includeData).toEqual([true]);
+    expect(transcribe).toHaveBeenCalledOnce();
+    expect(writer.body('2026-07-08.md')).toBe(
+      '## Telegram\n\n**09:12** \n![[voice.oga]]\n🎙️ remember the milk\n',
+    );
+  });
+
+  it('keeps the embed, advances the cursor and reports a transcription failure', async () => {
+    const voice = {
+      chatId: '555',
+      messageId: 1,
+      date: T,
+      text: '',
+      attachment: { kind: 'voice' as const, fileId: 'v1' },
+    };
+    const { engine, writer, settings, onNotice } = build(
+      [result([voice], 2)],
+      { transcriptionEnabled: true, transcriptionApiKey: 'key' },
+      {
+        save: async () => ({ line: '![[voice.oga]]', fileName: 'voice.oga', data: new ArrayBuffer(3) }),
+        transcribe: async () => {
+          throw new HumanError('error.transcriptionFailed', { reason: 'HTTP 500' });
+        },
+      },
+    );
+    await engine.run('manual');
+    expect(writer.body('2026-07-08.md')).toContain('![[voice.oga]]');
+    expect(settings.cursor).toBe(2);
+    expect(onNotice.mock.calls[0][0]).toMatchObject({ key: 'error.transcriptionFailed' });
+  });
+
+  it('does not request bytes or STT while transcription is disabled', async () => {
+    const voice = {
+      chatId: '555',
+      messageId: 1,
+      date: T,
+      text: '',
+      attachment: { kind: 'voice' as const, fileId: 'v1' },
+    };
+    const includeData: boolean[] = [];
+    const transcribe = vi.fn(async () => 'unused');
+    const { engine } = build([result([voice], 2)], {}, {
+      save: async (_m, _path, include) => {
+        includeData.push(include ?? false);
+        return { line: '![[voice.oga]]' };
+      },
+      transcribe,
+    });
+    await engine.run('manual');
+    expect(includeData).toEqual([false]);
+    expect(transcribe).not.toHaveBeenCalled();
   });
 
   it('converts entities to Markdown on the way in', async () => {
