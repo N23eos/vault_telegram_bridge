@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TgEntity } from '../src/telegram/types';
-import { resolveRoute, routeMessage } from '../src/sync/routing';
+import { isValidRoutePath, resolveRoute, routeMessage } from '../src/sync/routing';
 
 const fmt = (template: string): string =>
   template.replace(/YYYY/g, '2026').replace(/MM/g, '07').replace(/DD/g, '16');
@@ -131,5 +131,46 @@ describe('routeMessage', () => {
         fmt,
       ),
     ).toThrow();
+  });
+
+  it('truncates a formatting entity that ends inside the removed hashtag span', () => {
+    // Bold covers 'important #idea'; removing '#idea ' must keep bold on 'important'.
+    const entities: TgEntity[] = [
+      { type: 'bold', offset: 0, length: 15 },
+      { type: 'hashtag', offset: 10, length: 5 },
+    ];
+    const routed = routeMessage(
+      'important #idea milk',
+      entities,
+      [{ tag: 'idea', notePath: 'I.md' }],
+      new Date(0),
+      fmt,
+    );
+    expect(routed?.text).toBe('important milk');
+    expect(routed?.entities).toEqual([{ type: 'bold', offset: 0, length: 9 }]);
+  });
+
+  it('clips the front of an entity that starts inside the removed span', () => {
+    // Bold covers ' milk' including the consumed space after the hashtag.
+    const entities: TgEntity[] = [
+      { type: 'hashtag', offset: 0, length: 5 },
+      { type: 'bold', offset: 5, length: 5 },
+    ];
+    const routed = routeMessage('#idea milk', entities, [{ tag: 'idea', notePath: 'I.md' }], new Date(0), fmt);
+    expect(routed?.text).toBe('milk');
+    expect(routed?.entities).toEqual([{ type: 'bold', offset: 0, length: 4 }]);
+  });
+});
+
+describe('isValidRoutePath', () => {
+  it('accepts literal and dated paths', () => {
+    expect(isValidRoutePath('Inbox/Ideas.md')).toBe(true);
+    expect(isValidRoutePath('Topics/YYYY-MM')).toBe(true);
+  });
+
+  it('rejects empty, bracketed and traversal paths', () => {
+    expect(isValidRoutePath('')).toBe(false);
+    expect(isValidRoutePath('Ideas [x]')).toBe(false);
+    expect(isValidRoutePath('a/../b')).toBe(false);
   });
 });

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HumanError, errConflict, errInvalidToken, errOffline } from '../src/errors';
+import { HumanError, errConflict, errInvalidToken, errOffline, errRateLimited } from '../src/errors';
 import { DEFAULT_SETTINGS, type Settings } from '../src/settings';
+import { extractMarkers, markerKey } from '../src/sync/dedupe';
+import { readSyncedIds } from '../src/vault/frontmatter';
 import { SyncEngine } from '../src/sync/engine';
 import { applyEntries, type NoteEntry } from '../src/vault/writer';
 import type { MessageSource, PollResult } from '../src/telegram/types';
@@ -25,6 +27,12 @@ class FakeWriter {
     const { content, written } = applyEntries(base, heading, entries);
     this.notes.set(path, content);
     return written;
+  }
+  async recordedKeys(path: string): Promise<Set<string>> {
+    const content = this.notes.get(path) ?? '';
+    const keys = readSyncedIds(content);
+    for (const key of extractMarkers(content)) keys.add(key);
+    return keys;
   }
   /** The body, without the bookkeeping frontmatter. */
   body(path: string): string {
@@ -482,6 +490,87 @@ describe('SyncEngine — attachments', () => {
     expect(writer.body('2026-07-08.md')).toBe(
       '## Telegram\n\n**09:12**\n![[voice.oga]]\n🎙️ remember the milk\n',
     );
+  });
+
+  it('falls back to the daily note and keeps syncing when a saved route path is invalid', async () => {
+    const msg = {
+      chatId: '555',
+      messageId: 1,
+      date: T,
+      text: '#idea hello',
+      entities: [{ type: 'hashtag' as const, offset: 0, length: 5 }],
+    };
+    const { engine, writer, settings, onNotice } = build([result([msg], 9)], {
+      routes: [{ tag: 'idea', notePath: 'Bad [path]' }],
+    });
+    await engine.run('manual');
+    expect(writer.body('2026-07-08.md')).toContain('hello');
+    expect(settings.cursor).toBe(9);
+    expect(onNotice.mock.calls[0][0]).toMatchObject({ key: 'error.badTemplate' });
+  });
+
+  it('seeds a routed note with the daily template when the route lands on the daily note', async () => {
+    const msg = {
+      chatId: '555',
+      messageId: 1,
+      date: T,
+      text: '#log hi',
+      entities: [{ type: 'hashtag' as const, offset: 0, length: 4 }],
+    };
+    const { engine, writer } = build(
+      [result([msg], 2)],
+      { routes: [{ tag: 'log', notePath: 'YYYY-MM-DD' }] },
+      { seed: async () => '# Template\n' },
+    );
+    await engine.run('manual');
+    expect(writer.notes.get('2026-07-08.md')).toContain('# Template');
+  });
+
+  it('rethrows retryable transcription errors so the batch retries with the cursor unmoved', async () => {
+    const voice = {
+      chatId: '555',
+      messageId: 1,
+      date: T,
+      text: '',
+      attachment: { kind: 'voice' as const, fileId: 'v1' },
+    };
+    const { engine, writer, settings } = build(
+      [result([voice], 2)],
+      { cursor: 1, transcriptionEnabled: true, transcriptionApiKey: 'key' },
+      {
+        save: async () => ({ line: '![[v.oga]]', fileName: 'v.oga', data: new ArrayBuffer(1) }),
+        transcribe: async () => {
+          throw errRateLimited(30);
+        },
+      },
+    );
+    await engine.run('manual');
+    expect(settings.cursor).toBe(1);
+    expect(writer.notes.size).toBe(0);
+  });
+
+  it('does not re-transcribe a message already recorded in the note', async () => {
+    const voice = {
+      chatId: '555',
+      messageId: 7,
+      date: T,
+      text: '',
+      attachment: { kind: 'voice' as const, fileId: 'v1' },
+    };
+    const transcribe = vi.fn(async () => 'should not be called');
+    const { engine, writer } = build(
+      [result([voice], 2)],
+      { transcriptionEnabled: true, transcriptionApiKey: 'key' },
+      {
+        save: async () => ({ line: '![[v.oga]]', fileName: 'v.oga', data: new ArrayBuffer(1) }),
+        transcribe,
+      },
+    );
+    await writer.appendEntries('2026-07-08.md', '## Telegram', [
+      { key: markerKey({ chatId: '555', messageId: 7 }), lines: ['**09:12**', '![[v.oga]]'] },
+    ]);
+    await engine.run('manual');
+    expect(transcribe).not.toHaveBeenCalled();
   });
 
   it('writes no transcript line and no notice when the transcript is empty', async () => {

@@ -65,6 +65,44 @@ describe('OpenAITranscriber', () => {
     );
   });
 
+  it('maps 429 to the retryable rate-limit error so the engine retries the batch', async () => {
+    const request = vi.fn(async () => ({ status: 429, json: {} }));
+    const client = new OpenAITranscriber(request as never, () => 'b');
+    await expect(
+      client.transcribe(
+        { fileName: 'voice.oga', data: new ArrayBuffer(1) },
+        { baseUrl: 'https://stt.example/v1', apiKey: 'k', model: 'm' },
+      ),
+    ).rejects.toSatisfy((error) => error instanceof HumanError && error.key === 'error.rateLimited');
+  });
+
+  it('maps 5xx to the retryable network error', async () => {
+    const request = vi.fn(async () => ({ status: 503, json: {} }));
+    const client = new OpenAITranscriber(request as never, () => 'b');
+    await expect(
+      client.transcribe(
+        { fileName: 'voice.oga', data: new ArrayBuffer(1) },
+        { baseUrl: 'https://stt.example/v1', apiKey: 'k', model: 'm' },
+      ),
+    ).rejects.toSatisfy((error) => error instanceof HumanError && error.key === 'error.network');
+  });
+
+  it('wraps a non-JSON 2xx body in the localized transcription error', async () => {
+    const request = vi.fn(async () => ({
+      status: 200,
+      get json(): unknown {
+        throw new SyntaxError('Unexpected token <');
+      },
+    }));
+    const client = new OpenAITranscriber(request as never, () => 'b');
+    await expect(
+      client.transcribe(
+        { fileName: 'voice.oga', data: new ArrayBuffer(1) },
+        { baseUrl: 'https://stt.example/v1', apiKey: 'k', model: 'm' },
+      ),
+    ).rejects.toSatisfy((error) => error instanceof HumanError && error.key === 'error.transcriptionFailed');
+  });
+
   it('returns an empty string for an empty transcript — silence is not an error', async () => {
     const request = vi.fn(async () => ({ status: 200, json: { text: '   ' } }));
     const client = new OpenAITranscriber(request as never, () => 'b');

@@ -98,7 +98,9 @@ describe('migrate', () => {
   });
 
   describe('routes', () => {
-    it('normalises tags and route paths and drops malformed rows', () => {
+    it('normalises rows but never silently deletes a user-entered route', () => {
+      // A typo'd tag or a half-filled row must survive the round-trip so the
+      // user can fix it in the settings tab; deleting it loses their config.
       const s = migrate({
         version: 3,
         routes: [
@@ -106,9 +108,16 @@ describe('migrate', () => {
           { tag: '', notePath: 'Inbox/Empty.md' },
           { tag: 'bad tag', notePath: 'Inbox/Bad.md' },
           { tag: 'ok', notePath: '' },
+          { tag: '', notePath: '' },
+          'not a route',
         ],
       });
-      expect(s.routes).toEqual([{ tag: 'idea', notePath: 'Inbox/Ideas.md', heading: '## Ideas' }]);
+      expect(s.routes).toEqual([
+        { tag: 'idea', notePath: 'Inbox/Ideas.md', heading: '## Ideas' },
+        { tag: '', notePath: 'Inbox/Empty.md' },
+        { tag: 'bad tag', notePath: 'Inbox/Bad.md' },
+        { tag: 'ok', notePath: '' },
+      ]);
     });
 
     it('caps the number of routes', () => {
@@ -118,6 +127,17 @@ describe('migrate', () => {
   });
 
   describe('transcription settings', () => {
+    it('rejects plain http for remote hosts but allows local endpoints', () => {
+      const remote = migrate({ version: 3, transcriptionBaseUrl: 'http://api.groq.com/openai/v1' });
+      expect(remote.transcriptionBaseUrl).toBe(DEFAULT_SETTINGS.transcriptionBaseUrl);
+
+      const local = migrate({ version: 3, transcriptionBaseUrl: 'http://localhost:8080/v1' });
+      expect(local.transcriptionBaseUrl).toBe('http://localhost:8080/v1');
+
+      const loopback = migrate({ version: 3, transcriptionBaseUrl: 'http://127.0.0.1:9000' });
+      expect(loopback.transcriptionBaseUrl).toBe('http://127.0.0.1:9000');
+    });
+
     it('normalises the base URL and trims credentials', () => {
       const s = migrate({
         version: 3,
