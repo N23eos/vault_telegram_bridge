@@ -237,28 +237,43 @@ function freshDefaults(): Settings {
   return { ...DEFAULT_SETTINGS, routes: [] };
 }
 
-const HASHTAG = /^[\p{L}\p{N}_]+$/u;
+/** A tag a Telegram hashtag entity can actually produce. */
+export const HASHTAG_SHAPE = /^[\p{L}\p{N}_]+$/u;
 
+/**
+ * Normalises rows but never silently deletes one: a typo'd tag or half-filled
+ * row must survive the restart so the user can fix it in the settings tab. An
+ * invalid tag simply never matches; the tab marks it visually.
+ */
 function sanitizeRoutes(value: unknown[]): HashtagRoute[] {
   const routes: HashtagRoute[] = [];
   for (const item of value.slice(0, 100)) {
     if (typeof item !== 'object' || item === null) continue;
     const raw = item as Record<string, unknown>;
     if (typeof raw.tag !== 'string' || typeof raw.notePath !== 'string') continue;
-    const tag = raw.tag.trim().replace(/^#/, '').toLocaleLowerCase();
+    const tag = raw.tag.trim().replace(/^#/, '').toLowerCase();
     const notePath = stripSlashes(raw.notePath);
-    if (!HASHTAG.test(tag) || notePath === '') continue;
+    if (tag === '' && notePath === '') continue;
     const heading = typeof raw.heading === 'string' ? raw.heading.trim() : '';
     routes.push({ tag, notePath, ...(heading !== '' ? { heading } : {}) });
   }
   return routes;
 }
 
-function normalizeHttpUrl(value: string): string | null {
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+
+/**
+ * The API key travels as a Bearer header, so remote endpoints must be https.
+ * Plain http is allowed only for loopback — a local whisper server is a real
+ * use case and never leaves the machine.
+ */
+export function normalizeHttpUrl(value: string): string | null {
   const trimmed = value.trim().replace(/\/+$/, '');
   try {
     const url = new URL(trimmed);
-    return url.protocol === 'https:' || url.protocol === 'http:' ? trimmed : null;
+    if (url.protocol === 'https:') return trimmed;
+    if (url.protocol === 'http:' && LOCAL_HOSTS.has(url.hostname)) return trimmed;
+    return null;
   } catch {
     return null;
   }
