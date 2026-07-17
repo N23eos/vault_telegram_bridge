@@ -1,6 +1,6 @@
 {
   "name": "vault-telegram-bridge",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Capture Telegram messages, media and voice transcripts into your Obsidian vault.",
   "private": true,
   "type": "module",
