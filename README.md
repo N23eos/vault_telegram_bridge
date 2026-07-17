@@ -6,7 +6,7 @@ Send yourself a message in Telegram — it appears in your Obsidian daily note.
 
 No server, no VPS, no Docker. Works on desktop and mobile.
 
-![A message sent to the bot in Telegram appears in the Obsidian daily note](https://raw.githubusercontent.com/N23eos/vault_telegram_bridge/main/docs/screenshots/capture.jpg)
+![A message sent to the bot in Telegram appears in the Obsidian daily note](https://raw.githubusercontent.com/n23eos/vault_telegram_bridge/main/docs/screenshots/capture.jpg)
 
 ## How it works
 
@@ -26,11 +26,11 @@ Capture is instant; **delivery happens while Obsidian is open**. The plugin poll
 
 **1. Create a bot.** Message [@BotFather](https://t.me/botfather) in Telegram: `/newbot`, answer two prompts (a display name, then a username ending in `bot`), copy the token it gives you.
 
-![Creating a bot with @BotFather: New Bot, pick a name and username, copy the token](https://raw.githubusercontent.com/N23eos/vault_telegram_bridge/main/docs/screenshots/botfather.jpg)
+![Creating a bot with @BotFather: New Bot, pick a name and username, copy the token](https://raw.githubusercontent.com/n23eos/vault_telegram_bridge/main/docs/screenshots/botfather.jpg)
 
 **2. Connect the plugin.** Obsidian → Settings → Vault Telegram Bridge → paste the token → **Connect**. The same screen sets where messages go (folder, note name, heading) and how each entry looks.
 
-![Plugin settings: bot token, target folder and note name, heading, line format](https://raw.githubusercontent.com/N23eos/vault_telegram_bridge/main/docs/screenshots/settings.jpg)
+![Plugin settings: bot token, target folder and note name, heading, line format](https://raw.githubusercontent.com/n23eos/vault_telegram_bridge/main/docs/screenshots/settings.jpg)
 
 **3. Send your new bot a message.** That chat is now bound to the plugin; messages from any other chat are ignored.
 

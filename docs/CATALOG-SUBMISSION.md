@@ -24,7 +24,7 @@ Checked against the Obsidian developer documentation on 2026-07-16.
    all three assets are downloadable.
 4. Sign in at <https://community.obsidian.md>, link the GitHub account, select
    **Plugins → New plugin**, and submit
-   `https://github.com/N23eos/vault_telegram_bridge`.
+   `https://github.com/n23eos/vault_telegram_bridge`.
 5. Address automated review feedback by incrementing the version and publishing
    a new matching GitHub release.
 

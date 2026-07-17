@@ -19,7 +19,7 @@
     "obsidian",
     "telegram"
   ],
-  "author": "N23eos",
+  "author": "n23eos",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.14.0",
