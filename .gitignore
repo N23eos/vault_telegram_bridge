@@ -6,9 +6,19 @@ main.js.map
 spikes/dist/
 coverage/
 
-# NEVER commit these — see docs/SECURITY-DECISION.md
+# NEVER commit these
 telegram-session.json.enc
 *.session
 .env
 .env.local
 spike-credentials.json
+
+# Internal working docs — kept locally, not published
+.plan*.md
+TZ.md
+SPEC.md
+AGENTS.md
+DEPLOY.md
+docs/SPIKE-REPORT.md
+docs/SECURITY-DECISION.md
+docs/ADR-001-bot-mode-first.md

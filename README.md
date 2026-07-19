@@ -102,7 +102,7 @@ The plugin will never send messages, set reactions, read chats you did not point
 
 ## Known limits
 
-- **Messages expire after 24 hours.** Telegram queues undelivered bot updates for one day. If Obsidian stays closed longer, the message survives only in the chat with your bot. Account mode (planned — Saved Messages sync, nothing expires) has no such limit; see [ADR-001](docs/ADR-001-bot-mode-first.md) for why bot mode ships first.
+- **Messages expire after 24 hours.** Telegram queues undelivered bot updates for one day. If Obsidian stays closed longer, the message survives only in the chat with your bot. Account mode (planned — Saved Messages sync, nothing expires) has no such limit.
 - **Files over 20 MB stay in Telegram.** The bot API refuses to serve them; the entry gets a placeholder line instead of the file. Stickers, polls and locations are counted and skipped.
 - **One poller per bot.** If desktop and phone are both open, one wins the poll and the other backs off; the note reaches it through your normal vault sync. Handled, not an error.
 - **Edits and deletions in Telegram don't touch the note.** Deliberate: the note is yours.
@@ -118,7 +118,7 @@ npm run build     # typecheck + lint + bundle to main.js
 
 The build fails if any code imports a Node or Electron API (the plugin must run on mobile), or if the product bundle imports GramJS (account-mode work; used only by the Phase 0 spike under `spikes/`).
 
-Worth reading before changing anything: [ADR-001](docs/ADR-001-bot-mode-first.md) — why bot mode ships first; [SPIKE-REPORT](docs/SPIKE-REPORT.md) — Phase 0 findings, including a duplication bug the obvious implementation would have shipped; [SECURITY-DECISION](docs/SECURITY-DECISION.md) — account-mode session storage; [MANUAL-TEST-GUIDE](docs/MANUAL-TEST-GUIDE.md) — checks that need a human and a real phone.
+Worth reading before changing anything: [MANUAL-TEST-GUIDE](docs/MANUAL-TEST-GUIDE.md) — checks that need a human and a real phone.
 
 ## Licence
 
